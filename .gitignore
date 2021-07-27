@@ -127,3 +127,23 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# numpy file
+.npy
+.npz
+
+# weights fodler
+weight/
+weights/
+
+# logs folders
+lightning_logs/
+runs/
+logs/
+
+# checkpoint folder
+checkpoint/
+data/
+train_data/
+dataset_prepare/data
