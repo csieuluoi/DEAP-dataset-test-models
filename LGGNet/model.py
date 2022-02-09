@@ -3,6 +3,8 @@ import torch_geometric
 from einops import rearrange
 
 import pytorch_lightning as pl
+import torchmetrics
+from einops.layers.torch import Rearrange
 
 EEG_channels_name = ["Fp1","AF3","F3","F7","FC5","FC1","C3","T7","CP5","CP1","P3","P7","PO3","O1","Oz","Pz","Fp2","AF4","Fz","F4","F8","FC6","FC2","Cz","C4","T8","P6","CP2","P4","P8","PO4","O2"]
 g1 = ["Fp1", "AF7", "AF3"]
@@ -60,7 +62,7 @@ class CNN1D(torch.nn.Module):
 
         x = self.conv11(x)
         x = rearrange(x, "(b c) c1 n -> b c c1 n", c = c)
-        x = x.squeeze()
+        x = x.squeeze(2)
 
         return x
 
@@ -92,7 +94,6 @@ class LocalGNN(torch.nn.Module):
     def forward(self, x, device):
         Z_filtered = self.avgpool(self.relu(x*self.local_W - self.local_b))
         Z_local = torch.empty((Z_filtered.shape[0], 11, Z_filtered.shape[-1]), device = device)
-
         for i in range(11):
             z_m = torch.mean(Z_filtered[:, self.g_idx[i], :], dim = 1)
             Z_local[:, i, :] = z_m.squeeze()
@@ -109,9 +110,12 @@ class GlobalGNN(torch.nn.Module):
         self.global_b = torch.nn.Parameter(torch.randn(input_shape[1], 1))
 
         self.relu = torch.nn.ReLU()
-        self.linear_out = torch.nn.Linear(704, 2)
-        self.dropout = torch.nn.Dropout(p=0.3)
+        self.flatten = Rearrange("b c s -> b (c s)")
+        self.linear1 = torch.nn.Linear(704, 32)
+        self.linear_out = torch.nn.Linear(32, 1)
 
+        self.dropout = torch.nn.Dropout(p=0.3)
+        self.sigmoid = torch.nn.Sigmoid()
 
     def forward(self, x, device):
         x = self.batchnorm(x)
@@ -119,9 +123,9 @@ class GlobalGNN(torch.nn.Module):
 
         x = torch.matmul(x, self.global_W)
         x = self.relu(x - self.global_b)
-        print(x.shape)
-        x = x.reshape(x.shape[0], -1)
-        x = self.linear_out(self.dropout(x))
+        x = self.flatten(x)
+        x = self.relu(self.linear1(self.dropout(x)))
+        x = self.linear_out(x)
 
         return self.sigmoid(x)
 
@@ -134,42 +138,60 @@ class LGNNet(pl.LightningModule):
         self.lgnn = LocalGNN(input_shape = (1, 32, 833))
         self.ggnn = GlobalGNN(input_shape = (1, 11, 277))
 
-        self.bceloss = nn.BCELoss()
-        self.sigmoid = torch.nn.Sigmoid()
-        self.accuracy = pl.metrics.Accuracy()
+        self.loss = torch.nn.BCELoss()
+        acc = torchmetrics.Accuracy()
+        # use .clone so that each metric can maintain its own state
+        self.train_acc = acc.clone()
+        # assign all metrics as attributes of module so they are detected as children
+        self.valid_acc = acc.clone()
 
-    def forward(self, x, device):
+    def forward(self, x):
         x = self.TConv(x)
-        x = self.lgnn(x, device)
-        x = self.ggnn(x, device)
+        x = self.lgnn(x, self.device)
+        x = self.ggnn(x, self.device)
 
         return x
 
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr=1e-2, momentum = 0.9)
 
-    def training_step(self, batch):
+    def training_step(self, batch, batch_idx):
         x, y = batch
         outputs = self(x)
 
-        loss = self.bceloss(outputs, labels)
-
+        loss = self.loss(outputs, y)
+        # print(outputs, "/n", y)
         self.log("train_loss", loss)
-        self.log("train_acc", self.accuracy(outputs, labels))
 
-        return loss
+        return {"loss": loss, "preds": outputs, "targets": y}
 
-    def validation_step(self, batch):
+    def training_step_end(self, outs):
+        # log accuracy on each step_end, for compatibility with data-parallel
+        self.train_acc(outs["preds"], outs["targets"].int())
+        self.log("train/acc_step", self.train_acc)
+
+    def training_epoch_end(self, outs):
+        # additional log mean accuracy at the end of the epoch
+        self.log("train/acc_epoch", self.train_acc.compute())
+
+    def validation_step(self, batch, batch_idx):
         x, y = batch
         outputs = self(x)
 
-        loss = self.bceloss(outputs, labels)
+        loss = self.loss(outputs, y)
 
-        self.log("validation_loss", loss)
-        self.log("validation_acc", self.accuracy(outputs, labels))
+        self.log("val_loss", loss)
 
-        return loss
+        return {"preds": outputs, "targets": y}
 
+    def validation_step_end(self, outs):
+        # log accuracy on each step_end, for compatibility with data-parallel
+        self.valid_acc(outs["preds"], outs["targets"].int())
+        self.log("val/acc_step", self.valid_acc)
+
+    def validation_epoch_end(self, outs):
+        # additional log mean accuracy at the end of the epoch
+        self.log("val/acc_epoch", self.valid_acc.compute())
 
 if __name__=="__main__":
 
@@ -208,4 +230,5 @@ if __name__=="__main__":
     x = torch.randn(8, 32, 7680).to("cuda")
     net = LGNNet().to("cuda")
 
-    out = net(x, "cuda")
+    out = net(x)
+    print(out)

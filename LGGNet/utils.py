@@ -75,8 +75,8 @@ def get_one_subject(subject_index):
 def get_dataloader(X, y, batch_size = 1, shuffle = True):
 
     tensor_x = torch.Tensor(X) # transform to torch tensor
-    tensor_y = torch.Tensor(y)
-    tensor_y = tensor_y.unsqueeze(1)
+    tensor_y = torch.Tensor(y).long()
+    # tensor_y = tensor_y.unsqueeze(1)
     my_dataset = TensorDataset(tensor_x, tensor_y) # create your datset
     my_dataloader = DataLoader(my_dataset, batch_size = batch_size, shuffle = shuffle) # create your dataload
 
