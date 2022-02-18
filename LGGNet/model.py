@@ -1,4 +1,7 @@
+
+
 import torch
+import torch.nn as nn
 import torch_geometric
 from einops import rearrange
 
@@ -19,6 +22,8 @@ g9 = ["P7", "P5", "P3", "P1", "Pz", "P2", "P4", "P6", "P8"]
 g10 = ["PO7", "PO3", "POz", "PO4", "PO8"]
 g11 = ["O1", "Oz", "O2"]
 
+DEVICE = torch.device("cuda:0")
+
 def get_channel_index(channel_name_list, all_channels = EEG_channels_name):
     idxes = []
     for name in channel_name_list:
@@ -30,53 +35,82 @@ def get_channel_index(channel_name_list, all_channels = EEG_channels_name):
 def get_kernel_size(k):
     return int((0.5**k) * 128)
 
-class CNN1D(torch.nn.Module):
-    def __init__(self, T=5):
-        super().__init__()
-        self.conv1 = torch.nn.Conv1d(1, T, get_kernel_size(1))
-        self.conv2 = torch.nn.Conv1d(1, T, get_kernel_size(2))
-        self.conv3 = torch.nn.Conv1d(1, T, get_kernel_size(3))
+"""TSception is the CNN1D in LGG net"""
+class TCNN1D(nn.Module):
+    def conv_block(self, in_chan, out_chan, kernel, step, pool):
+        return nn.Sequential(
+            nn.Conv2d(in_channels=in_chan, out_channels=out_chan,
+                      kernel_size=kernel, stride=step, padding=0),
+            nn.LeakyReLU(),
+            nn.AvgPool2d(kernel_size=(1, pool), stride=(1, pool)))
 
-        self.relu = torch.nn.LeakyReLU(0.01)
-        self.avgpool1 = torch.nn.AvgPool1d(kernel_size = get_kernel_size(1))
-        self.avgpool2 = torch.nn.AvgPool1d(kernel_size = get_kernel_size(2))
-        self.avgpool3 = torch.nn.AvgPool1d(kernel_size = get_kernel_size(3))
+    def __init__(self, input_size, sampling_rate, num_T, num_S, hidden, dropout_rate):
+        # input_size: EEG channel x datapoint
+        super(TCNN1D, self).__init__()
+        self.inception_window = [0.5, 0.25, 0.125]
+        self.pool = 8
+        # by setting the convolutional kernel being (1,lenght) and the strids being 1 we can use conv2d to
+        # achieve the 1d convolution operation
+        self.Tception1 = self.conv_block(1, num_T, (1, int(self.inception_window[0] * sampling_rate)), 1, self.pool)
+        self.Tception2 = self.conv_block(1, num_T, (1, int(self.inception_window[1] * sampling_rate)), 1, self.pool)
+        self.Tception3 = self.conv_block(1, num_T, (1, int(self.inception_window[2] * sampling_rate)), 1, self.pool)
 
-        self.batchnorm = torch.nn.BatchNorm1d(T)
-        self.conv11 = torch.nn.Conv1d(T, 1, 1)
+        self.Sception1 = self.conv_block(num_T, num_S, (1, 1), 1, int(self.pool*0.25))
+
+        self.BN_t = nn.BatchNorm2d(num_T)
+
+        self.size = self.get_size(input_size)
+
 
     def forward(self, x):
-        b, c, n = x.shape
+        ## original code: x : (batch, channel, n)
+        ## code from tsception repo: x : (batch, 1, channel, n)
+        # b, c, n = x.shape
+        # x = rearrange(x, "b c n -> b 1 c n")
+        y = self.Tception1(x)
+        out = y
+        y = self.Tception2(x)
+        out = torch.cat((out, y), dim=-1)
+        y = self.Tception3(x)
+        out = torch.cat((out, y), dim=-1)
+        out = self.BN_t(out)
 
-        x1 = rearrange(x, "b c n -> (b c) 1 n")
-        x1 = self.avgpool1(self.relu(self.conv1(x1)))
+        out = self.Sception1(out)
+        out = out.squeeze(1)
+        return out
 
-        x2 = rearrange(x, "b c n -> (b c) 1 n")
-        x2 = self.avgpool2(self.relu(self.conv1(x2)))
+    def get_size(self, input_size):
+        # here we use an array with the shape being
+        # (1(mini-batch),1(convolutional channel),EEG channel,time data point)
+        # to simulate the input data and get the output size
+        x = torch.ones((1, 1, input_size[-2], int(input_size[-1])))
+        # b, c, n = x.shape
+        # x = rearrange(x, "b c n -> b 1 c n")
+        y = self.Tception1(x)
+        out = y
+        y = self.Tception2(x)
+        out = torch.cat((out, y), dim=-1)
+        y = self.Tception3(x)
+        out = torch.cat((out, y), dim=-1)
+        out = self.BN_t(out)
 
-        x3 = rearrange(x, "b c n -> (b c) 1 n")
-        x3 = self.avgpool3(self.relu(self.conv1(x3)))
+        out = self.Sception1(out)
+        out = out.squeeze(1)
 
-        x = torch.concat((x1, x2, x3), dim = -1)
-        x = self.batchnorm(x)
-
-        x = self.conv11(x)
-        x = rearrange(x, "(b c) c1 n -> b c c1 n", c = c)
-        x = x.squeeze(2)
-
-        return x
+        return out.size()
 
 
 
-class LocalGNN(torch.nn.Module):
-    def __init__(self, input_shape):
+class LocalGNN(nn.Module):
+    def __init__(self, input_size):
         super().__init__()
 
-        self.local_W = torch.nn.Parameter(torch.randn(input_shape[1], input_shape[2]))
-        self.local_b = torch.nn.Parameter(torch.randn(input_shape[1], 1))
-
-        self.relu = torch.nn.ReLU()
-        self.avgpool = torch.nn.AvgPool1d(kernel_size = 3)
+        self.local_W = nn.Parameter(torch.nn.init.xavier_normal_(torch.FloatTensor(input_size[-2], input_size[-1])))
+        self.local_b = nn.Parameter(torch.nn.init.xavier_normal_(torch.FloatTensor(input_size[-2], 1)))
+        pool = 8
+        self.relu = nn.ReLU()
+        # self.avgpool = nn.AvgPool1d(kernel_size = pool)
+        self.avgpool = nn.AvgPool2d(kernel_size=(1, pool), stride=(1, pool))
         self.g_idx = [
             get_channel_index(g1),
             get_channel_index(g2),
@@ -90,55 +124,90 @@ class LocalGNN(torch.nn.Module):
             get_channel_index(g10),
             get_channel_index(g11),
         ]
+        self.size = self.get_size(input_size)
 
-    def forward(self, x, device):
+
+    def forward(self, x):
         Z_filtered = self.avgpool(self.relu(x*self.local_W - self.local_b))
-        Z_local = torch.empty((Z_filtered.shape[0], 11, Z_filtered.shape[-1]), device = device)
+        Z_local = torch.empty((Z_filtered.shape[0], 11, Z_filtered.shape[-1])).to(Z_filtered.get_device())
+
+        for i in range(11):
+            z_m = torch.mean(Z_filtered[:, self.g_idx[i], :], dim = 1)
+            Z_local[:, i, :] = z_m.squeeze()
+        return Z_local
+
+    def get_size(self, input_size):
+        x = torch.ones((1, input_size[-2], int(input_size[-1])))
+
+        Z_filtered = self.avgpool(self.relu(x*self.local_W - self.local_b))
+        Z_local = torch.empty((Z_filtered.shape[0], 11, Z_filtered.shape[-1]))
         for i in range(11):
             z_m = torch.mean(Z_filtered[:, self.g_idx[i], :], dim = 1)
             Z_local[:, i, :] = z_m.squeeze()
 
-        return Z_local
+        return Z_local.size()
 
-class GlobalGNN(torch.nn.Module):
-    def __init__(self, input_shape):
+
+class GlobalGNN(nn.Module):
+    def __init__(self, input_size, hidden_size = 64):
         super().__init__()
-        self.batchnorm = torch.nn.BatchNorm1d(input_shape[1])
+        self.batchnorm = nn.BatchNorm1d(input_size[1])
 
-        self.global_A = torch.nn.Parameter(torch.randn(input_shape[1], input_shape[1]))
-        self.global_W = torch.nn.Parameter(torch.randn(input_shape[2], 64))
-        self.global_b = torch.nn.Parameter(torch.randn(input_shape[1], 1))
+        self.global_A = nn.Parameter(torch.nn.init.xavier_normal_(torch.FloatTensor(input_size[-2], input_size[-2])))#, requires_grad = True,  device=DEVICE)
 
-        self.relu = torch.nn.ReLU()
+        self.global_W = nn.Linear(input_size[-1], hidden_size)
+
+        self.relu = nn.ReLU()
         self.flatten = Rearrange("b c s -> b (c s)")
-        self.linear1 = torch.nn.Linear(704, 32)
-        self.linear_out = torch.nn.Linear(32, 1)
 
-        self.dropout = torch.nn.Dropout(p=0.3)
-        self.sigmoid = torch.nn.Sigmoid()
+        self.size = self.get_size(input_size)
 
-    def forward(self, x, device):
+
+
+    def forward(self, x):
+
+        # self.global_A_ = self.global_A + self.global_A.transpose(0, 1)
         x = self.batchnorm(x)
         x = torch.matmul(self.global_A, x)
 
-        x = torch.matmul(x, self.global_W)
-        x = self.relu(x - self.global_b)
+        x = self.relu(self.global_W(x))
         x = self.flatten(x)
-        x = self.relu(self.linear1(self.dropout(x)))
-        x = self.linear_out(x)
 
-        return self.sigmoid(x)
+        return x
 
+    def get_size(self, input_size):
+        # print(input_size)
+        x = torch.ones((1, input_size[-2], int(input_size[-1])))
+        # print(x.shape)
+        # print(self.global_A.shape)
+
+        x = self.batchnorm(x)
+        x = torch.matmul(self.global_A, x)
+
+        x = self.relu(self.global_W(x))
+        x = self.flatten(x)
+
+        return x.size()
 
 class LGNNet(pl.LightningModule):
-    def __init__(self, T_kernels = 5):
+    def __init__(self, num_classes = 2, T_kernels = 5, hidden = 32, dropout_rate = 0.3):
         super().__init__()
+        # self.device = device
+        # self.TConv = TCNN1D((32,7680),128,T_kernels,1,128,0.2)
+        self.TConv = TCNN1D((1, 32, 512),128,T_kernels,1,128,0.2)
+        self.lgnn = LocalGNN(input_size = self.TConv.size)
+        self.ggnn = GlobalGNN(input_size = self.lgnn.size)
 
-        self.TConv = CNN1D(T = T_kernels)
-        self.lgnn = LocalGNN(input_shape = (1, 32, 833))
-        self.ggnn = GlobalGNN(input_shape = (1, 11, 277))
 
-        self.loss = torch.nn.BCELoss()
+        self.fc = nn.Sequential(
+            nn.Linear(self.ggnn.size[-1], hidden),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),
+            nn.Linear(hidden, num_classes)
+        )
+
+        self.crossEntropyLoss = nn.CrossEntropyLoss()
+
         acc = torchmetrics.Accuracy()
         # use .clone so that each metric can maintain its own state
         self.train_acc = acc.clone()
@@ -147,8 +216,9 @@ class LGNNet(pl.LightningModule):
 
     def forward(self, x):
         x = self.TConv(x)
-        x = self.lgnn(x, self.device)
-        x = self.ggnn(x, self.device)
+        x = self.lgnn(x)
+        x = self.ggnn(x)
+        x = self.fc(x)
 
         return x
 
@@ -159,7 +229,7 @@ class LGNNet(pl.LightningModule):
         x, y = batch
         outputs = self(x)
 
-        loss = self.loss(outputs, y)
+        loss = self.crossEntropyLoss(outputs, y)
         # print(outputs, "/n", y)
         self.log("train_loss", loss)
 
@@ -177,8 +247,8 @@ class LGNNet(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y = batch
         outputs = self(x)
-
-        loss = self.loss(outputs, y)
+        # print(outputs.shape, y.shape)
+        loss = self.crossEntropyLoss(outputs, y)
 
         self.log("val_loss", loss)
 
@@ -193,42 +263,159 @@ class LGNNet(pl.LightningModule):
         # additional log mean accuracy at the end of the epoch
         self.log("val/acc_epoch", self.valid_acc.compute())
 
-if __name__=="__main__":
 
-    """====================================================================="""
-    """========================== test CNN1D ==============================="""
-    # model = CNN1D(in_channels = 32)
-    # x = torch.randn(8, 32, 7680)
-    # out = model(x)
-    # print(out.shape)
 
-    """====================================================================="""
-    """========================== test LGNN ================================"""
-    # x = torch.randn(8, 32, 833)
+# class TSception(pl.LightningModule):
+#     def conv_block(self, in_chan, out_chan, kernel, step, pool):
+#         return nn.Sequential(
+#             nn.Conv2d(in_channels=in_chan, out_channels=out_chan,
+#                       kernel_size=kernel, stride=step, padding=0),
+#             nn.LeakyReLU(),
+#             nn.AvgPool2d(kernel_size=(1, pool), stride=(1, pool)))
 
-    # model = LocalGNN(input_shape = x.shape)
-    # out = model(x, "cuda")
-    # print(model.local_W.shape)
-    # print(out.shape)
-    # print(out)
+#     def __init__(self, num_classes, input_size, sampling_rate, num_T, num_S, hidden, dropout_rate):
+#         # input_size: EEG channel x datapoint
+#         super(TSception, self).__init__()
+#         self.inception_window = [0.5, 0.25, 0.125]
+#         self.pool = 8
+#         # by setting the convolutional kernel being (1,lenght) and the strids being 1 we can use conv2d to
+#         # achieve the 1d convolution operation
+#         self.Tception1 = self.conv_block(1, num_T, (1, int(self.inception_window[0] * sampling_rate)), 1, self.pool)
+#         self.Tception2 = self.conv_block(1, num_T, (1, int(self.inception_window[1] * sampling_rate)), 1, self.pool)
+#         self.Tception3 = self.conv_block(1, num_T, (1, int(self.inception_window[2] * sampling_rate)), 1, self.pool)
 
-    # print(len(g1) + len(g2) + len(g3) + len(g4) + len(g5) + len(g6) + len(g7) + len(g8) + len(g9)+len(g10)+len(g11))
+#         self.Sception1 = self.conv_block(num_T, num_S, (int(input_size[-2]), 1), 1, int(self.pool*0.25))
+#         self.Sception2 = self.conv_block(num_T, num_S, (int(input_size[-2] * 0.5), 1), (int(input_size[-2] * 0.5), 1),
+#                                          int(self.pool*0.25))
+#         self.BN_t = nn.BatchNorm2d(num_T)
+#         self.BN_s = nn.BatchNorm2d(num_S)
 
-    # print([EEG_channels_name.index(c) for c in g1])
-    # idxes = get_channel_index(g9, EEG_channels_name)
+#         size = self.get_size(input_size)
+#         self.fc = nn.Sequential(
+#             nn.Linear(size[1], hidden),
+#             nn.ReLU(),
+#             nn.Dropout(dropout_rate),
+#             nn.Linear(hidden, num_classes)
+#         )
 
-    # print(idxes)
-    # print([EEG_channels_name[idx] for idx in idxes])
-    # print(g9)
+#         self.crossEntropyLoss = nn.CrossEntropyLoss()
 
-    # x = torch.randn(8, 11, 277)
-    # model = GlobalGNN(x.shape)
-    # device = "cuda"
-    # out = model(x, device)
+#         acc = torchmetrics.Accuracy()
+#         # use .clone so that each metric can maintain its own state
+#         self.train_acc = acc.clone()
+#         # assign all metrics as attributes of module so they are detected as children
+#         self.valid_acc = acc.clone()
 
-    # print(out.shape)
-    x = torch.randn(8, 32, 7680).to("cuda")
-    net = LGNNet().to("cuda")
+#     def forward(self, x):
+#         b, c, n = x.shape
+#         x = rearrange(x, "b c n -> b 1 c n")
+#         y = self.Tception1(x)
+#         out = y
+#         y = self.Tception2(x)
+#         out = torch.cat((out, y), dim=-1)
+#         y = self.Tception3(x)
+#         out = torch.cat((out, y), dim=-1)
+#         out = self.BN_t(out)
+#         # print(out.shape)
+#         z = self.Sception1(out)
+#         out_ = z
+#         z = self.Sception2(out)
+#         out_ = torch.cat((out_, z), dim=2)
+#         out = self.BN_s(out_)
+#         out = out.view(out.size()[0], -1)
+#         out = self.fc(out)
+#         return out
 
-    out = net(x)
+#     def get_size(self, input_size):
+#         # here we use an array with the shape being
+#         # (1(mini-batch),1(convolutional channel),EEG channel,time data point)
+#         # to simulate the input data and get the output size
+#         data = torch.ones((1, 1, input_size[-2], int(input_size[-1])))
+#         y = self.Tception1(data)
+#         out = y
+#         y = self.Tception2(data)
+#         out = torch.cat((out, y), dim=-1)
+#         y = self.Tception3(data)
+#         out = torch.cat((out, y), dim=-1)
+#         out = self.BN_t(out)
+#         z = self.Sception1(out)
+#         out_final = z
+#         z = self.Sception2(out)
+#         out_final = torch.cat((out_final, z), dim=2)
+#         out = self.BN_s(out_final)
+#         out = out.view(out.size()[0], -1)
+#         return out.size()
+
+#     def configure_optimizers(self):
+#         return torch.optim.SGD(self.parameters(), lr=1e-2, momentum = 0.9)
+
+#     def training_step(self, batch, batch_idx):
+#         x, y = batch
+#         outputs = self(x)
+
+#         loss = self.crossEntropyLoss(outputs, y)
+#         # print(outputs, "/n", y)
+#         self.log("train_loss", loss)
+
+#         return {"loss": loss, "preds": outputs, "targets": y}
+
+#     def training_step_end(self, outs):
+#         # log accuracy on each step_end, for compatibility with data-parallel
+#         self.train_acc(outs["preds"], outs["targets"].int())
+#         self.log("train/acc_step", self.train_acc)
+
+#     def training_epoch_end(self, outs):
+#         # additional log mean accuracy at the end of the epoch
+#         self.log("train/acc_epoch", self.train_acc.compute())
+
+#     def validation_step(self, batch, batch_idx):
+#         x, y = batch
+#         outputs = self(x)
+#         # print(outputs.shape, y.shape)
+#         loss = self.crossEntropyLoss(outputs, y)
+
+#         self.log("val_loss", loss)
+
+#         return {"preds": outputs, "targets": y}
+
+#     def validation_step_end(self, outs):
+#         # log accuracy on each step_end, for compatibility with data-parallel
+#         self.valid_acc(outs["preds"], outs["targets"].int())
+#         self.log("val/acc_step", self.valid_acc)
+
+#     def validation_epoch_end(self, outs):
+#         # additional log mean accuracy at the end of the epoch
+#         self.log("val/acc_epoch", self.valid_acc.compute())
+
+
+if __name__ == "__main__":
+    # model = TCNN1D((32,7680),128,5,1,128,0.2)
+    #model = Sception(2,(4,1024),256,6,128,0.2)
+    #model = Tception(2,(4,1024),256,9,128,0.2)
+    model = LGNNet(num_classes = 2).to("cuda")
+    print(model)
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(pytorch_total_params)
+
+
+    x = torch.randn(2, 1, 32, 512).to("cuda")
+    out = model(x)
     print(out)
+
+    targets = torch.LongTensor([0, 1]).to("cuda")
+    loss_fn = nn.CrossEntropyLoss()
+
+    loss = loss_fn(out, targets)
+    print(loss)
+    ### test small modules
+    # tcnn1d = TCNN1D((1, 32, 512),128,5,1,128,0.2).to("cuda")
+    # x = torch.randn(2, 1, 32, 512).to("cuda")
+    # out = tcnn1d(x)
+    # # print(out.shape)
+
+    # lgnn = LocalGNN(input_size = tcnn1d.size).to("cuda")
+    # out = lgnn(out)
+    # out = out.to("cuda")
+    # ggnn = GlobalGNN(input_size = lgnn.size).to("cuda")
+    # out = ggnn(out)
+    # print(out.shape)
