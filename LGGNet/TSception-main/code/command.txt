@@ -1,0 +1,5 @@
+python main-DEAP.py --data-path "D:/AIproject/emotion recognition/DEAP/data_preprocessed_python" --segment 4 --trial-duration 60 --overlap 0 --random-seed 2021 --max-epoch 200 --batch-size 64 --T 15 --graph-type "TS" --hidden 32 --subjects 32 --num-class 2 --label-type "A"
+
+
+
+python main-DEAP.py --data-path "D:/AIproject/emotion recognition/DEAP/data_preprocessed_python" --segment 4 --trial-duration 60 --overlap 0 --random-seed 2021 --max-epoch 200 --batch-size 64 --T 5 --graph-type "O" --model "LGNNet" --hidden 32 --subjects 32 --num-class 2 --label-type "A"
