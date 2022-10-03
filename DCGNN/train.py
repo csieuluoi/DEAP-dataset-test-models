@@ -80,6 +80,8 @@ def train_one_epoch(model, dataloader, optimizer, scheduler, loss_func, regulari
         out = model(x_batch)
         # print(out.shape, y_batch.shape)
         loss = loss_func(out, y_batch)
+        # print(out, y_batch)
+        # print(loss)
         _, pred = torch.max(out, 1)
 
         ## l2 regularization
@@ -95,6 +97,8 @@ def train_one_epoch(model, dataloader, optimizer, scheduler, loss_func, regulari
         tl.add(loss)
         pred_train.extend(pred.data.tolist())
         label_train.extend(y_batch.data.tolist())
+        # torch.autograd.set_detect_anomaly(True)
+
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -250,7 +254,8 @@ def train_main(args):
             print("TRAIN:", train_index, "VAL:", test_index)
             X_train, X_test = X[train_index], X[test_index]
             y_train, y_test = y[train_index], y[test_index]
-
+            print("X_train shape: ", X_train.shape)
+            print("y_train shape: ", y_train.shape)
             # # reshape before normalize -> (n 1 c s)
             # X_train = rearrange(X_train, "n c s -> n 1 c s", c=32)
             # X_test = rearrange(X_test, "n c s -> n 1 c s", c=32)
@@ -292,11 +297,11 @@ def train_main(args):
                 ##  initialize the model
                 model = DCGNN(
                     in_features=4,
-                    out_features=8,
+                    out_features=16,
                     n_channels=32,
                     K=5,
-                    n_classes=2,
-                    dropout_rate=0.2,
+                    n_classes=args.num_class,
+                    dropout_rate=args.dropout,
                 )
                 if CUDA:
                     model = model.cuda()
@@ -315,11 +320,11 @@ def train_main(args):
             # load the model with name given by best accuracy
             model = DCGNN(
                 in_features=4,
-                out_features=8,
+                out_features=16,
                 n_channels=32,
                 K=5,
-                n_classes=2,
-                dropout_rate=0.2,
+                n_classes=args.num_class,
+                dropout_rate=args.dropout,
             )
             if CUDA:
                 model = model.cuda()
@@ -418,7 +423,8 @@ def train_loso(args):
 
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-
+        print("X_train shape: ", X_train.shape)
+        print("y_train shape: ", y_train.shape)
         # # reshape before normalize -> (n 1 c s)
         # X_train = rearrange(X_train, "n c s -> n 1 c s", c=32)
         # X_test = rearrange(X_test, "n c s -> n 1 c s", c=32)
@@ -443,7 +449,8 @@ def train_loso(args):
             print("Subject: {} - Fold: {}".format(SUBJECT_NUMBER + 1, inner_fold))
             X_train_fold, X_val = X_train[train_fold_index], X_train[val_index]
             y_train_fold, y_val = y_train[train_fold_index], y_train[val_index]
-
+            print("X_train fold shape: ", X_train_fold.shape)
+            print("y_train_fold shape: ", y_train_fold.shape)
             train_loader = get_dataloader(
                 X_train_fold, y_train_fold, args.batch_size, shuffle=True
             )
@@ -452,11 +459,11 @@ def train_loso(args):
             ##  initialize the model
             model = DCGNN(
                 in_features=4,
-                out_features=8,
+                out_features=16,
                 n_channels=32,
                 K=5,
-                n_classes=2,
-                dropout_rate=0.2,
+                n_classes=args.num_class,
+                dropout_rate=args.dropout,
             )
             if CUDA:
                 model = model.cuda()
@@ -475,11 +482,11 @@ def train_loso(args):
         # load the model with name given by best accuracy
         model = DCGNN(
             in_features=4,
-            out_features=8,
+            out_features=16,
             n_channels=32,
             K=5,
-            n_classes=2,
-            dropout_rate=0.2,
+            n_classes=args.num_class,
+            dropout_rate=args.dropout,
         )
         if CUDA:
             model = model.cuda()
@@ -573,9 +580,9 @@ if __name__ == "__main__":
     ######## Training Process ########
     parser.add_argument("--random-seed", type=int, default=2021)
     parser.add_argument("--max-epoch", type=int, default=100)
-    parser.add_argument("--batch-size", type=int, default=8)
-    parser.add_argument("--learning-rate1", type=float, default=1e-2)
-    parser.add_argument("--learning-rate2", type=float, default=1e-3)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument("--learning-rate1", type=float, default=1e-3)
+    parser.add_argument("--learning-rate2", type=float, default=1e-4)
     parser.add_argument("--weight-decay", type=float, default=1e-5)
     parser.add_argument("--dropout", type=float, default=0.25)
     parser.add_argument("--regularized", type=int, default=0)

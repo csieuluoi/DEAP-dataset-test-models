@@ -88,7 +88,7 @@ def get_one_subject(subject_index, num_classes=2):
     #   ar_label: binary label of arousal.
 
     data = load_data_per_subject(subject_index)
-    X = data["data"][:, :32, 128 * 3 :]
+    X = data["data"][:, :32, :]
     labels = data["labels"]
     assert num_classes in [2, 3], "num_classes should be 2 or 3"
     labels_k_classes = labels_quantization(labels, num_classes)
@@ -99,14 +99,14 @@ def get_one_subject(subject_index, num_classes=2):
     return X, val_labels_k, ar_labels_k
 
 
-def get_dataloader(X, y, batch_size=1, shuffle=True):
+def get_dataloader(X, y, batch_size=1, num_workers=1, shuffle=True):
 
     tensor_x = torch.Tensor(X)  # transform to torch tensor
-    tensor_y = torch.Tensor(y).long()
+    tensor_y = torch.Tensor(y).long().squeeze()
     # tensor_y = tensor_y.unsqueeze(1)
     my_dataset = TensorDataset(tensor_x, tensor_y)  # create your datset
     my_dataloader = DataLoader(
-        my_dataset, batch_size=batch_size, shuffle=shuffle
+        my_dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers
     )  # create your dataload
 
     return my_dataloader

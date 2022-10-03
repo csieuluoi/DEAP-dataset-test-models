@@ -1,0 +1,3 @@
+- the value of w explode very quick ? which make it unable to calculate the lamba_max value.
+
+- training codes have problems ? simple FC net can't be trained

@@ -1,91 +1,12 @@
 
-
-2022-04-05 17:41:38.818794
+2022-08-22 21:33:14.326306
 Train:Parameter setting for DCGNN on DEAP
 1)number_class:2
 2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
 4)weight_decay:1e-05
-5)num_epochs:100
-6)batch_size:8
-7)dropout:0.25
-8)hidden_node:32
-9)input_shape:(1, 32, 7680)
-10)class:A
-11)inner_folds:5
-12)classes_balanced:True
-11)regularized:0
-0.6,0.7499999999999999
-0.575,0.7301587301587301
-0.8,0.0
-0.375,0.0
-
-
-2022-04-05 19:01:09.766793
-Train:Parameter setting for DCGNN on DEAP
-1)number_class:2
-2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
-4)weight_decay:1e-05
-5)num_epochs:100
-6)batch_size:8
-7)dropout:0.25
-8)hidden_node:32
-9)input_shape:(1, 32, 7680)
-10)class:A
-11)inner_folds:5
-12)classes_balanced:True
-11)regularized:0
-0.6,0.7499999999999999
-0.575,0.7301587301587301
-0.8,0.0
-
-2022-04-06 16:09:06.771437
-Train:Parameter setting for DCGNN on DEAP
-1)number_class:2
-2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
-4)weight_decay:1e-05
-5)num_epochs:100
-6)batch_size:8
-7)dropout:0.25
-8)hidden_node:32
-9)input_shape:(1, 32, 7680)
-10)class:A
-11)inner_folds:5
-12)classes_balanced:True
-13)regularized:0
-14)train_type:loso
-
-2022-04-06 16:14:11.136924
-Train:Parameter setting for DCGNN on DEAP
-1)number_class:2
-2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
-4)weight_decay:1e-05
-5)num_epochs:100
-6)batch_size:8
-7)dropout:0.25
-8)hidden_node:32
-9)input_shape:(1, 32, 7680)
-10)class:A
-11)inner_folds:5
-12)classes_balanced:True
-13)regularized:0
-14)train_type:loso
-
-2022-04-06 16:18:45.863360
-Train:Parameter setting for DCGNN on DEAP
-1)number_class:2
-2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
-4)weight_decay:1e-05
-5)num_epochs:100
+5)num_epochs:1000
 6)batch_size:8
 7)dropout:0.25
 8)hidden_node:32
@@ -96,14 +17,14 @@ Train:Parameter setting for DCGNN on DEAP
 13)regularized:0
 14)train_type:loto
 
-2022-04-06 16:20:45.103694
+2022-08-22 21:36:58.457260
 Train:Parameter setting for DCGNN on DEAP
 1)number_class:2
 2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
 4)weight_decay:1e-05
-5)num_epochs:100
+5)num_epochs:1000
 6)batch_size:8
 7)dropout:0.25
 8)hidden_node:32
@@ -112,16 +33,16 @@ Train:Parameter setting for DCGNN on DEAP
 11)inner_folds:5
 12)classes_balanced:True
 13)regularized:0
-14)train_type:loso
+14)train_type:loto
 
-2022-04-06 16:29:23.390822
+2022-08-22 21:38:07.741345
 Train:Parameter setting for DCGNN on DEAP
 1)number_class:2
 2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
 4)weight_decay:1e-05
-5)num_epochs:100
+5)num_epochs:1000
 6)batch_size:8
 7)dropout:0.25
 8)hidden_node:32
@@ -130,16 +51,16 @@ Train:Parameter setting for DCGNN on DEAP
 11)inner_folds:5
 12)classes_balanced:True
 13)regularized:0
-14)train_type:loso
+14)train_type:loto
 
-2022-04-06 16:31:30.176778
+2022-08-22 21:39:07.537221
 Train:Parameter setting for DCGNN on DEAP
 1)number_class:2
 2)random_seed:2021
-3)learning_rate1:0.01
-3)learning_rate2:0.001
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
 4)weight_decay:1e-05
-5)num_epochs:100
+5)num_epochs:1000
 6)batch_size:8
 7)dropout:0.25
 8)hidden_node:32
@@ -148,4 +69,202 @@ Train:Parameter setting for DCGNN on DEAP
 11)inner_folds:5
 12)classes_balanced:True
 13)regularized:0
-14)train_type:loso
+14)train_type:loto
+
+2022-08-22 21:40:48.770566
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:43:02.152441
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:43:34.696470
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:44:28.925409
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:200
+6)batch_size:16
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:48:19.466496
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:200
+6)batch_size:16
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:51:09.277641
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:52:13.202586
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 21:59:09.494433
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 22:05:52.401278
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 22:06:23.251524
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
+
+2022-08-22 22:12:45.961745
+Train:Parameter setting for DCGNN on DEAP
+1)number_class:2
+2)random_seed:2021
+3)learning_rate1:0.001
+3)learning_rate2:0.0001
+4)weight_decay:1e-05
+5)num_epochs:1000
+6)batch_size:8
+7)dropout:0.25
+8)hidden_node:32
+9)input_shape:(1, 32, 7680)
+10)class:A
+11)inner_folds:5
+12)classes_balanced:True
+13)regularized:0
+14)train_type:loto
